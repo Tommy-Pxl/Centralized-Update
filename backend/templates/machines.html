@@ -2,29 +2,35 @@
 {% block content %}
 <h2>Managed VMs</h2>
 
-<a class="btn btn-primary" href="/machines/add">Add New VM</a>
+<a class="btn btn-primary mb-3" href="/machines/add">Add New VM</a>
 
-<table class="table mt-3">
-  <tr>
-    <th>ID</th>
-    <th>Hostname</th>
-    <th>IP</th>
-    <th>User</th>
-    <th>Actions</th>
-  </tr>
+<table class="table table-bordered">
+  <thead class="table-dark">
+    <tr>
+      <th>ID</th>
+      <th>Hostname</th>
+      <th>IP</th>
+      <th>User</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
 
-  {% for m in machines %}
-  <tr>
-    <td>{{ m[0] }}</td>
-    <td>{{ m[1] }}</td>
-    <td>{{ m[2] }}</td>
-    <td>{{ m[3] }}</td>
-    <td>
-      <a href="/scan/{{ m[0] }}" class="btn btn-info btn-sm">Scan</a>
-      <a href="/update/{{ m[0] }}" class="btn btn-warning btn-sm">Update</a>
-      <a href="/machines/delete/{{ m[0] }}" class="btn btn-danger btn-sm">Delete</a>
-    </td>
-  </tr>
-  {% endfor %}
+  <tbody>
+    {% for m in machines %}
+    <tr>
+      <td>{{ m[0] }}</td>
+      <td>{{ m[1] }}</td>
+      <td>{{ m[2] }}</td>
+      <td>{{ m[3] }}</td>
+      <td>
+        <a href="/scan/{{ m[0] }}" class="btn btn-info btn-sm">Scan</a>
+        <a href="/update/{{ m[0] }}" class="btn btn-warning btn-sm">Update</a>
+        <a href="/generate_client_script/{{ m[0] }}" class="btn btn-secondary btn-sm">Client Setup Script</a>
+        <a href="/machines/delete/{{ m[0] }}" class="btn btn-danger btn-sm">Delete</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
 </table>
+
 {% endblock %}

@@ -1,25 +1,28 @@
 import subprocess
-from database import get_machine, get_machines
-
-INVENTORY_PATH = "ansible/inventory.ini"
+from database import get_machines
 
 def rebuild_inventory():
     machines = get_machines()
-    with open(INVENTORY_PATH, "w") as f:
+    with open("ansible/inventory.ini", "w") as f:
         for m in machines:
-            f.write(f"{m[2]} ansible_user={m[3]}\n")
-    print("[+] Inventory rebuilt.")
+            id, hostname, ip, username = m
+            f.write(f"{hostname} ansible_host={ip} ansible_user={username}\n")
 
 def run_playbook(playbook, machine_id):
-    machine = get_machine(machine_id)
-    target = machine[2]
+    machines = dict((m[0], m) for m in get_machines())
+    if machine_id not in machines:
+        return "Machine not found"
 
+    id, hostname, ip, username = machines[machine_id]
     cmd = [
         "ansible-playbook",
+        "-i", "ansible/inventory.ini",
         playbook,
-        "-i", INVENTORY_PATH,
-        "--extra-vars", f"target={target}"
+        "--limit", hostname
     ]
 
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    return "<pre>" + result.stdout + "</pre>"
+    try:
+        output = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        return output.decode()
+    except subprocess.CalledProcessError as e:
+        return e.output.decode()
