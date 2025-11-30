@@ -7,19 +7,17 @@ services:
     container_name: centralized_update_backend
     ports:
       - "5000:5000"
-    restart: unless-stopped
     volumes:
-      - ./backend/db.sqlite:/app/db.sqlite
+      - ./backend:/app
+      - ./ansible:/app/ansible
+      - ~/.ssh/id_rsa.pub:/app/ssh/id_rsa.pub:ro
     depends_on:
       - ansible_runner
 
   ansible_runner:
-    build: ./ansible
+    build: ./ansible_runner
     container_name: centralized_update_ansible_runner
-    restart: unless-stopped
     volumes:
-      - ~/.ssh:/root/.ssh:ro
+      - ./ansible:/ansible
+    command: ["sleep", "infinity"]
 
-networks:
-  default:
-    driver: bridge

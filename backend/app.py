@@ -1,6 +1,15 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
-from database import init_db, get_machines, add_machine, delete_machine, get_machine, update_machine_ip
+from database import (
+    init_db, 
+    get_machines, 
+    add_machine, 
+    delete_machine, 
+    get_machine,
+    get_machine_by_hostname,
+    update_machine_ip
+)
 from ansible_interface import run_playbook, rebuild_inventory
+
 import subprocess
 import os
 
@@ -14,7 +23,7 @@ with app.app_context():
 
 
 # ---------------------------------------------------------
-# Home redirect → /machines
+# Home → redirect to machines
 # ---------------------------------------------------------
 @app.route("/")
 def index():
@@ -22,16 +31,16 @@ def index():
 
 
 # ---------------------------------------------------------
-# List all machines
+# Display machines
 # ---------------------------------------------------------
 @app.route("/machines")
 def machines_page():
-    machines = get_machines()   # returns list of tuples
+    machines = get_machines()   # list of tuples
     return render_template("machines.html", machines=machines)
 
 
 # ---------------------------------------------------------
-# Add a new machine
+# Add machine
 # ---------------------------------------------------------
 @app.route("/machines/add", methods=["GET", "POST"])
 def machines_add():
@@ -63,7 +72,7 @@ def machines_delete(id):
 @app.route("/scan/<int:machine_id>")
 def scan(machine_id):
     machine = get_machine(machine_id)
-    if machine is None:
+    if not machine:
         return "Machine not found", 404
 
     rebuild_inventory()
@@ -77,7 +86,7 @@ def scan(machine_id):
 @app.route("/update/<int:machine_id>")
 def update(machine_id):
     machine = get_machine(machine_id)
-    if machine is None:
+    if not machine:
         return "Machine not found", 404
 
     rebuild_inventory()
@@ -86,24 +95,29 @@ def update(machine_id):
 
 
 # ---------------------------------------------------------
-# Generate client setup script for this VM
+# Generate Client Setup Script
 # ---------------------------------------------------------
 @app.route("/generate_client_script/<int:machine_id>")
 def generate_client_script(machine_id):
     machine = get_machine(machine_id)
-    if machine is None:
+    if not machine:
         return "Machine not found", 404
 
-    machine_id, hostname, ip, username = machine
+    id, hostname, ip, username = machine
 
-    # Read master SSH pubkey
-    ssh_key_path = f"/home/{os.getenv('USER')}/.ssh/id_rsa.pub"
+    # Mounted SSH key from host (read-only)
+    ssh_key_path = "/app/ssh/id_rsa.pub"
+
+    if not os.path.exists(ssh_key_path):
+        return f"SSH key not found at {ssh_key_path}", 500
+
     with open(ssh_key_path, "r") as f:
         pubkey = f.read().strip()
 
     # Detect master IP
     master_ip = subprocess.check_output("hostname -I", shell=True).decode().split()[0]
 
+    # Render template
     script = render_template(
         "client_setup.sh.j2",
         master_ip=master_ip,
@@ -119,7 +133,7 @@ def generate_client_script(machine_id):
 
 
 # ---------------------------------------------------------
-# AUTO ENROLL API (client calls master)
+# AUTO ENROLL API (called from client_setup.sh)
 # ---------------------------------------------------------
 @app.route("/api/enroll", methods=["POST"])
 def api_enroll():
@@ -127,8 +141,10 @@ def api_enroll():
     hostname = data.get("hostname")
     ip = data.get("ip")
 
-    machine = get_machine_by_hostname(hostname)
-    if machine:
+    # update or add machine
+    existing = get_machine_by_hostname(hostname)
+
+    if existing:
         update_machine_ip(hostname, ip)
     else:
         add_machine(hostname, ip, "ansible")

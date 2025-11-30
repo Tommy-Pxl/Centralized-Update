@@ -1,22 +1,38 @@
 import subprocess
+import os
 from database import get_machines
 
+INVENTORY_PATH = "/app/ansible/inventory.ini"
+
+def ensure_ansible_dir():
+    ansible_dir = "/app/ansible"
+    if not os.path.isdir(ansible_dir):
+        os.makedirs(ansible_dir, exist_ok=True)
+
+
 def rebuild_inventory():
+    ensure_ansible_dir()
+
     machines = get_machines()
-    with open("ansible/inventory.ini", "w") as f:
+
+    with open(INVENTORY_PATH, "w") as f:
         for m in machines:
             id, hostname, ip, username = m
             f.write(f"{hostname} ansible_host={ip} ansible_user={username}\n")
 
+
 def run_playbook(playbook, machine_id):
-    machines = dict((m[0], m) for m in get_machines())
+    machines = {m[0]: m for m in get_machines()}
     if machine_id not in machines:
         return "Machine not found"
 
     id, hostname, ip, username = machines[machine_id]
+
+    ensure_ansible_dir()
+
     cmd = [
         "ansible-playbook",
-        "-i", "ansible/inventory.ini",
+        "-i", INVENTORY_PATH,
         playbook,
         "--limit", hostname
     ]
