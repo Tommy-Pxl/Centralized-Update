@@ -1,8 +1,10 @@
 import subprocess
 import os
+import json
 from database import get_machines
 
 INVENTORY_PATH = "/app/ansible/inventory.ini"
+
 
 def ensure_ansible_dir():
     ansible_dir = "/app/ansible"
@@ -21,7 +23,7 @@ def rebuild_inventory():
             f.write(f"{hostname} ansible_host={ip} ansible_user={username}\n")
 
 
-def run_playbook(playbook, machine_id):
+def run_playbook(playbook, machine_id, extra_vars=None):
     machines = {m[0]: m for m in get_machines()}
     if machine_id not in machines:
         return "Machine not found"
@@ -37,8 +39,10 @@ def run_playbook(playbook, machine_id):
         "--limit", hostname,
     ]
 
+    if extra_vars is not None:
+        cmd.extend(["-e", json.dumps(extra_vars)])
+
     env = os.environ.copy()
-    # Disable host key checking and specify private key file
     env["ANSIBLE_HOST_KEY_CHECKING"] = "False"
     env["ANSIBLE_PRIVATE_KEY_FILE"] = "/app/ssh/id_rsa"
 

@@ -40,19 +40,26 @@ def parse_upgradable(upgradable_lines, version_list_results):
     """
     Parse `apt list --upgradable` lines and match them with
     apt-cache madison outputs from version_list_results.
-    Returns a list of packages with current/from/versions.
+    Returns a list of packages with current/from/version choices.
     """
     packages = []
 
-    # Build map: package -> list of available versions (as raw lines)
+    # Build map: package -> list of available versions (parsed)
     versions_map = {}
     for r in version_list_results or []:
         item = r.get("item")
         if not item:
             continue
-        name = item  # item already cleaned (no slash)
+        name = item
         lines = (r.get("stdout") or "").splitlines()
-        versions_map[name] = lines
+
+        version_choices = []
+        for line in lines:
+            parts = line.split("|")
+            if len(parts) >= 2:
+                version_choices.append(parts[1].strip())
+
+        versions_map[name] = version_choices
 
     for line in upgradable_lines or []:
         if not line or line.startswith("Listing"):
@@ -163,31 +170,71 @@ def scan(machine_id):
 
     rebuild_inventory()
 
-    # Run Ansible scan playbook
     result_text = run_playbook("ansible/playbook_scan.yml", machine_id)
 
-    # After playbook runs, JSON should be at /app/ansible/scans/<hostname>.json
     json_path = f"/app/ansible/scans/{hostname}.json"
 
     if os.path.exists(json_path):
         with open(json_path, "r") as f:
             data_json = f.read()
         save_scan(machine_id_val, data_json)
-        # Go to detail page to view nice UI
         return redirect(url_for("machine_detail", machine_id=machine_id_val))
     else:
-        # If something went wrong, show raw Ansible output for debugging
         return f"<pre>{result_text}</pre>"
 
 
-@app.route("/update/<int:machine_id>")
+@app.route("/update/<int:machine_id>", methods=["GET", "POST"])
 def update(machine_id):
     machine = get_machine(machine_id)
     if not machine:
         return "Machine not found", 404
 
+    machine_id_val, hostname, ip, username = machine
+
+    # Load latest scan to know which packages are upgradable
+    latest_row = get_latest_scan_for_machine(machine_id_val)
+    packages = []
+    if latest_row:
+        _, _, data_json = latest_row
+        try:
+            data = json.loads(data_json)
+        except json.JSONDecodeError:
+            data = {}
+        upgradable_lines = data.get("upgradable", [])
+        version_list_results = data.get("version_list", [])
+        packages = parse_upgradable(upgradable_lines, version_list_results)
+
+    if request.method == "GET":
+        # Show update UI: checkboxes + version dropdowns
+        return render_template(
+            "update.html",
+            machine=machine,
+            packages=packages,
+        )
+
+    # POST: process selected packages
+    selected = []
+
+    # If "update_all" button used, ignore checkboxes and update everything to latest
+    if "update_all" in request.form:
+        for pkg in packages:
+            selected.append({"name": pkg["name"], "version": "latest"})
+    else:
+        # Otherwise, look at checked items and their chosen version
+        for pkg in packages:
+            checkbox_name = f"select_{pkg['name']}"
+            if checkbox_name in request.form:
+                version_field = f"version_{pkg['name']}"
+                version_val = request.form.get(version_field, "latest") or "latest"
+                selected.append({"name": pkg["name"], "version": version_val})
+
+    if not selected:
+        return "No packages selected for update.", 400
+
     rebuild_inventory()
-    result = run_playbook("ansible/playbook_update.yml", machine_id)
+
+    extra_vars = {"packages": selected}
+    result = run_playbook("ansible/playbook_update.yml", machine_id_val, extra_vars=extra_vars)
     return f"<pre>{result}</pre>"
 
 

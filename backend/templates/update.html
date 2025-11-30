@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h3 class="card-title">
+      Update {{ machine[1] }} <small class="text-muted">({{ machine[2] }})</small>
+    </h3>
+    <p class="card-text">
+      <strong>User:</strong> {{ machine[3] }}
+    </p>
+    <a href="/machine/{{ machine[0] }}" class="btn btn-link p-0">← Back to details</a>
+  </div>
+</div>
+
+{% if packages %}
+<form method="POST">
+
+  <div class="mb-3">
+    <button class="btn btn-success" type="submit" name="update_all" value="1">
+      Update ALL upgradable packages to latest
+    </button>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      Or select specific packages and versions:
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-sm table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width: 3rem;">Select</th>
+            <th>Package</th>
+            <th>Current</th>
+            <th>Upgradable From</th>
+            <th>Version to Install</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for pkg in packages %}
+          <tr>
+            <td>
+              <input type="checkbox"
+                     class="form-check-input"
+                     name="select_{{
+                     pkg.name }}">
+            </td>
+            <td><code>{{ pkg.name }}</code></td>
+            <td>{{ pkg.current }}</td>
+            <td>
+              {% if pkg.from %}
+                {{ pkg.from }}
+              {% else %}
+                <span class="text-muted">N/A</span>
+              {% endif %}
+            </td>
+            <td>
+              <select class="form-select form-select-sm"
+                      name="version_{{ pkg.name }}">
+                <option value="latest">Latest available</option>
+                {% for v in pkg.versions %}
+                <option value="{{ v }}">{{ v }}</option>
+                {% endfor %}
+              </select>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="mt-3">
+    <button class="btn btn-primary" type="submit">
+      Update selected
+    </button>
+  </div>
+
+</form>
+{% else %}
+<div class="alert alert-info">
+  No upgradable packages found in the latest scan. Try running a new scan first.
+</div>
+{% endif %}
+
+{% endblock %}

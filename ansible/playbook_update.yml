@@ -2,27 +2,26 @@
   gather_facts: no
   tasks:
 
-    - name: Update to latest version
-      when: version == "latest"
+    - name: Update selected packages to latest
+      when: item.version == "latest"
       apt:
-        name: "{{ package }}"
+        name: "{{ item.name }}"
         state: latest
         update_cache: yes
-      register: result_latest
+      loop: "{{ packages }}"
+      loop_control:
+        label: "{{ item.name }}"
 
-    - name: Update to specific version
-      when: version != "latest"
+    - name: Update selected packages to specific versions
+      when: item.version != "latest"
       apt:
-        name: "{{ package }}={{ version }}"
+        name: "{{ item.name }}={{ item.version }}"
         state: present
         update_cache: yes
-      register: result_specific
+      loop: "{{ packages }}"
+      loop_control:
+        label: "{{ item.name }}={{ item.version }}"
 
-    - name: Return results
+    - name: Show summary
       debug:
-        msg:
-          changed: true
-          package: "{{ package }}"
-          version: "{{ version }}"
-          result_latest: "{{ result_latest | default('') }}"
-          result_specific: "{{ result_specific | default('') }}"
+        msg: "{{ packages }}"
