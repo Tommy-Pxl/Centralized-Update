@@ -1,27 +1,25 @@
 import subprocess
-import json
+from database import get_machine, get_machines
 
-ANSIBLE_CONTAINER = "centralized_update_ansible_runner"
+INVENTORY_PATH = "ansible/inventory.ini"
 
-def run_scan(hostname):
+def rebuild_inventory():
+    machines = get_machines()
+    with open(INVENTORY_PATH, "w") as f:
+        for m in machines:
+            f.write(f"{m[2]} ansible_user={m[3]}\n")
+    print("[+] Inventory rebuilt.")
+
+def run_playbook(playbook, machine_id):
+    machine = get_machine(machine_id)
+    target = machine[2]
+
     cmd = [
-        "docker", "exec", ANSIBLE_CONTAINER,
-        "python3", "runner.py", "playbook_scan.yml",
-        json.dumps({"target": hostname})
+        "ansible-playbook",
+        playbook,
+        "-i", INVENTORY_PATH,
+        "--extra-vars", f"target={target}"
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    return result.stdout
 
-
-def run_update(hostname, package, version):
-    cmd = [
-        "docker", "exec", ANSIBLE_CONTAINER,
-        "python3", "runner.py", "playbook_update.yml",
-        json.dumps({
-            "target": hostname,
-            "package": package,
-            "version": version
-        })
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    return result.stdout
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    return "<pre>" + result.stdout + "</pre>"

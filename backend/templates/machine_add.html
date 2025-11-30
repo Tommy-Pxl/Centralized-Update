@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Add New VM</h2>
+
+<form method="POST">
+  <label>Hostname</label>
+  <input name="hostname" class="form-control" required>
+
+  <label>IP Address</label>
+  <input name="ip" class="form-control" required>
+
+  <label>Username (default: ansible)</label>
+  <input name="username" class="form-control" value="ansible">
+
+  <button class="btn btn-success mt-3" type="submit">Add VM</button>
+</form>
+
+{% endblock %}
