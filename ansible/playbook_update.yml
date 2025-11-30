@@ -2,12 +2,16 @@
   gather_facts: no
   tasks:
 
+    - name: Update apt cache once
+      apt:
+        update_cache: yes
+      changed_when: false
+
     - name: Update selected packages to latest
       when: item.version == "latest"
       apt:
         name: "{{ item.name }}"
         state: latest
-        update_cache: yes
       loop: "{{ packages }}"
       loop_control:
         label: "{{ item.name }}"
@@ -17,7 +21,6 @@
       apt:
         name: "{{ item.name }}={{ item.version }}"
         state: present
-        update_cache: yes
       loop: "{{ packages }}"
       loop_control:
         label: "{{ item.name }}={{ item.version }}"

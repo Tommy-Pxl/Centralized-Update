@@ -13,6 +13,30 @@
   </div>
 </div>
 
+{% if summary %}
+  {% set s = summary.status %}
+  {% if s == 'success' %}
+    {% set alert_class = 'success' %}
+  {% elif s == 'timeout' %}
+    {% set alert_class = 'warning' %}
+  {% elif s == 'failed' %}
+    {% set alert_class = 'danger' %}
+  {% else %}
+    {% set alert_class = 'secondary' %}
+  {% endif %}
+
+  <div class="alert alert-{{ alert_class }}">
+    <strong>Update status:</strong> {{ s|capitalize }}
+    {% if summary.recap %}
+      <br>
+      <small><code>{{ summary.recap }}</code></small>
+    {% elif s == 'timeout' %}
+      <br>
+      <small>No Ansible recap found — playbook timed out.</small>
+    {% endif %}
+  </div>
+{% endif %}
+
 <div class="card mb-3">
   <div class="card-header">
     Packages updated (requested)

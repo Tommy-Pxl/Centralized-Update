@@ -24,6 +24,7 @@ from ansible_interface import run_playbook, rebuild_inventory
 
 import os
 import json
+import re
 
 app = Flask(__name__)
 
@@ -93,6 +94,53 @@ def parse_upgradable(upgradable_lines, version_list_results):
         )
 
     return packages
+
+
+def parse_ansible_summary(result_text: str):
+    """
+    Parse Ansible play recap from raw output and classify status.
+
+    Returns dict:
+      {
+        "status": "success" | "failed" | "timeout" | "unknown",
+        "recap": <recap_line or None>
+      }
+    """
+    if not result_text:
+        return {"status": "unknown", "recap": None}
+
+    # Timeout from run_playbook
+    if result_text.startswith("Timed out after"):
+        return {"status": "timeout", "recap": None}
+
+    lines = result_text.splitlines()
+    recap_line = None
+
+    for line in lines:
+        # Typical recap line: "ubuntu2 : ok=4 changed=3 unreachable=0 failed=1 skipped=0 ..."
+        if "failed=" in line and "unreachable=" in line and ":" in line:
+            recap_line = line.strip()
+
+    if recap_line is None:
+        return {"status": "unknown", "recap": None}
+
+    failed = 0
+    unreachable = 0
+
+    m_fail = re.search(r"failed=(\d+)", recap_line)
+    if m_fail:
+        failed = int(m_fail.group(1))
+
+    m_unreach = re.search(r"unreachable=(\d+)", recap_line)
+    if m_unreach:
+        unreachable = int(m_unreach.group(1))
+
+    if failed == 0 and unreachable == 0:
+        status = "success"
+    else:
+        status = "failed"
+
+    return {"status": status, "recap": recap_line}
 
 
 # ---------------------------------------------------------
@@ -245,6 +293,8 @@ def update(machine_id):
         extra_vars=extra_vars,
     )
 
+    summary = parse_ansible_summary(result)
+
     # Log the update run (one row per package)
     save_updates(machine_id_val, selected, result)
 
@@ -254,6 +304,7 @@ def update(machine_id):
         machine=machine,
         selected=selected,
         result=result,
+        summary=summary,
     )
 
 
