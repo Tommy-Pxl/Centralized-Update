@@ -1,5 +1,5 @@
 # Centralized-Update
-A centralized web-based update management system for Linux VMs using:
+A centralized web-based update management system for Ubuntu VMs using:
 
 - Python Flask (web dashboard & API)
 - SQLite3 (logging & inventory database)
