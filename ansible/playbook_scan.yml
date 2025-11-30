@@ -1,7 +1,5 @@
-- hosts: "{{ target }}"
-  become: yes
+- hosts: all
   gather_facts: no
-
   tasks:
 
     - name: Get installed packages
@@ -9,43 +7,27 @@
       register: installed_output
 
     - name: Get upgradable packages
-      shell: apt list --upgradable 2>/dev/null || true
+      shell: apt list --upgradable
       register: upgradable_output
 
     - name: Extract package names from upgradable list
       set_fact:
-        upgradable_packages: >-
-          {{ upgradable_output.stdout_lines
-             | map('regex_search', '^(.*?)/')
-             | map('first')
-             | reject('equalto', None)
-             | list }}
+        upgradable_names: "{{ upgradable_output.stdout_lines | map('regex_search', '^(.*?)/') | list }}"
 
-    - name: Get version list for each upgradable package
+    - name: Get available version list for each upgradable package
       shell: apt-cache madison {{ item }}
-      loop: "{{ upgradable_packages }}"
+      loop: "{{ upgradable_names }}"
       register: version_list_output
-      when: upgradable_packages | length > 0
 
-    - name: Get changelogs for each upgradable package
-      shell: apt changelog {{ item }} || echo "No changelog available."
-      loop: "{{ upgradable_packages }}"
+    - name: Get changelogs
+      shell: apt changelog {{ item }}
+      loop: "{{ upgradable_names }}"
       register: changelog_output
-      when: upgradable_packages | length > 0
 
-    - debug:
+    - name: Show combined results
+      debug:
         msg:
           installed: "{{ installed_output.stdout }}"
           upgradable: "{{ upgradable_output.stdout }}"
-          version_list: >
-            {%- if version_list_output is defined -%}
-              {{ version_list_output.results | json_query('[].stdout') }}
-            {%- else -%}
-              []
-            {%- endif -%}
-          changelogs: >
-            {%- if changelog_output is defined -%}
-              {{ changelog_output.results | json_query('[].stdout') }}
-            {%- else -%}
-              []
-            {%- endif -%}
+          version_list: "{{ version_list_output.results }}"
+          changelogs: "{{ changelog_output.results }}"

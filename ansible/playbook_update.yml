@@ -1,21 +1,14 @@
-- hosts: "{{ target }}"
-  become: yes
+- hosts: all
   gather_facts: no
-
   tasks:
 
-    - name: Get current installed version
-      shell: dpkg -s {{ package }} | grep Version | awk '{print $2}'
-      register: old_version_output
-      ignore_errors: yes
-
-    - name: Update to latest
+    - name: Update to latest version
       when: version == "latest"
       apt:
         name: "{{ package }}"
         state: latest
         update_cache: yes
-      register: update_output
+      register: result_latest
 
     - name: Update to specific version
       when: version != "latest"
@@ -23,16 +16,13 @@
         name: "{{ package }}={{ version }}"
         state: present
         update_cache: yes
-      register: update_output
+      register: result_specific
 
-    - name: Get new version after update
-      shell: dpkg -s {{ package }} | grep Version | awk '{print $2}'
-      register: new_version_output
-      ignore_errors: yes
-
-    - debug:
+    - name: Return results
+      debug:
         msg:
+          changed: true
           package: "{{ package }}"
-          old_version: "{{ old_version_output.stdout | default('unknown') }}"
-          new_version: "{{ new_version_output.stdout | default('unknown') }}"
-          notes: "{{ update_output }}"
+          version: "{{ version }}"
+          result_latest: "{{ result_latest | default('') }}"
+          result_specific: "{{ result_specific | default('') }}"
