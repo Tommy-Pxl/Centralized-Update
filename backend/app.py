@@ -1,16 +1,15 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from database import (
-    init_db, 
-    get_machines, 
-    add_machine, 
-    delete_machine, 
+    init_db,
+    get_machines,
+    add_machine,
+    delete_machine,
     get_machine,
     get_machine_by_hostname,
-    update_machine_ip
+    update_machine_ip,
 )
 from ansible_interface import run_playbook, rebuild_inventory
 
-import subprocess
 import os
 
 app = Flask(__name__)
@@ -35,7 +34,7 @@ def index():
 # ---------------------------------------------------------
 @app.route("/machines")
 def machines_page():
-    machines = get_machines()   # list of tuples
+    machines = get_machines()  # list of tuples
     return render_template("machines.html", machines=machines)
 
 
@@ -105,7 +104,7 @@ def generate_client_script(machine_id):
 
     id, hostname, ip, username = machine
 
-    # Mounted SSH key from host (read-only)
+    # SSH public key mounted from host into /app/ssh/id_rsa.pub
     ssh_key_path = "/app/ssh/id_rsa.pub"
 
     if not os.path.exists(ssh_key_path):
@@ -114,21 +113,18 @@ def generate_client_script(machine_id):
     with open(ssh_key_path, "r") as f:
         pubkey = f.read().strip()
 
-    # Detect master IP
-    master_ip = subprocess.check_output("hostname -I", shell=True).decode().split()[0]
+    # Use the IP/hostname that the browser used to reach the app
+    master_ip = request.host.split(":")[0]
 
-    # Render template
     script = render_template(
         "client_setup.sh.j2",
         master_ip=master_ip,
         ssh_public_key=pubkey,
-        ansible_user=username,
-        hostname=hostname
     )
 
     return script, 200, {
         "Content-Type": "text/plain",
-        "Content-Disposition": "attachment; filename=client_setup.sh"
+        "Content-Disposition": "attachment; filename=client_setup.sh",
     }
 
 
@@ -141,12 +137,12 @@ def api_enroll():
     hostname = data.get("hostname")
     ip = data.get("ip")
 
-    # update or add machine
     existing = get_machine_by_hostname(hostname)
 
     if existing:
         update_machine_ip(hostname, ip)
     else:
+        # new machine, always ansible user on client
         add_machine(hostname, ip, "ansible")
 
     rebuild_inventory()

@@ -34,11 +34,15 @@ def run_playbook(playbook, machine_id):
         "ansible-playbook",
         "-i", INVENTORY_PATH,
         playbook,
-        "--limit", hostname
+        "--limit", hostname,
     ]
 
+    env = os.environ.copy()
+    # Disable host key checking for this project (avoids "Host key verification failed")
+    env["ANSIBLE_HOST_KEY_CHECKING"] = "False"
+
     try:
-        output = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        output = subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=env)
         return output.decode()
     except subprocess.CalledProcessError as e:
         return e.output.decode()

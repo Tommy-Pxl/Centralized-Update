@@ -3,36 +3,53 @@ set -e
 
 MASTER_IP="{{ master_ip }}"
 MASTER_SSH_KEY="{{ ssh_public_key }}"
-ANSIBLE_USER="{{ ansible_user }}"
-HOSTNAME="{{ hostname }}"
+
+# These are determined on the client at runtime
+ANSIBLE_USER="ansible"
+HOSTNAME="$(hostname)"
 
 echo "========================================================="
 echo " Centralized-Update Client Setup"
 echo "========================================================="
 
+echo "[+] Updating packages..."
 sudo apt update -y
-sudo apt install -y openssh-server python3 sudo curl
 
-echo "[+] Creating ansible user..."
-sudo useradd -m -s /bin/bash "$ANSIBLE_USER" || true
-echo "$ANSIBLE_USER ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/$ANSIBLE_USER
+echo "[+] Installing required packages..."
+DEBIAN_FRONTEND=noninteractive sudo apt install -y openssh-server python3 sudo curl
 
+echo "[+] Ensuring ansible user exists..."
+if ! id "$ANSIBLE_USER" >/dev/null 2>&1; then
+    sudo useradd -m -s /bin/bash "$ANSIBLE_USER"
+fi
+
+echo "[+] Granting passwordless sudo..."
+echo "$ANSIBLE_USER ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/$ANSIBLE_USER >/dev/null
+
+echo "[+] Installing master SSH key..."
 sudo mkdir -p /home/$ANSIBLE_USER/.ssh
-echo "$MASTER_SSH_KEY" | sudo tee /home/$ANSIBLE_USER/.ssh/authorized_keys
+echo "$MASTER_SSH_KEY" | sudo tee /home/$ANSIBLE_USER/.ssh/authorized_keys >/dev/null
 sudo chmod 600 /home/$ANSIBLE_USER/.ssh/authorized_keys
 sudo chown -R $ANSIBLE_USER:$ANSIBLE_USER /home/$ANSIBLE_USER/.ssh
 
+echo "[+] Enabling SSH service..."
 sudo systemctl enable ssh || true
 sudo systemctl start ssh || true
 
-sudo hostnamectl set-hostname "$HOSTNAME"
+echo "[+] Using hostname: $HOSTNAME"
+# Do NOT override the hostname; use the machine's existing one
+# If you want to force a specific hostname, you could uncomment:
+# sudo hostnamectl set-hostname "$HOSTNAME"
 
 IP_ADDR=$(hostname -I | awk '{print $1}')
+echo "[+] Reporting enrollment to master at $MASTER_IP (IP: $IP_ADDR)..."
 
-curl -X POST "http://$MASTER_IP:5000/api/enroll" \
+# Limit time so it doesn't appear to hang forever if master is unreachable
+curl --max-time 5 -X POST "http://$MASTER_IP:5000/api/enroll" \
     -H "Content-Type: application/json" \
-    -d "{\"hostname\": \"$HOSTNAME\", \"ip\": \"$IP_ADDR\"}"
+    -d "{\"hostname\": \"$HOSTNAME\", \"ip\": \"$IP_ADDR\"}" || true
 
 echo "========================================================="
-echo " Client is now enrolled."
+echo " Client setup script finished."
+echo " If there was a problem, you can safely re-run this script."
 echo "========================================================="
