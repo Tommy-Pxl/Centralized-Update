@@ -34,6 +34,19 @@ def init_db():
         )
     """)
 
+    # Update history table
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS updates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            machine_id INTEGER,
+            timestamp TEXT,
+            package TEXT,
+            version TEXT,
+            result TEXT,
+            FOREIGN KEY(machine_id) REFERENCES machines(id)
+        )
+    """)
+
     conn.commit()
     conn.close()
 
@@ -141,3 +154,39 @@ def get_latest_scan_for_machine(machine_id):
     row = cur.fetchone()
     conn.close()
     return row
+
+
+# ---------------- Updates ---------------- #
+
+def save_updates(machine_id, selected_packages, result_text):
+    """
+    selected_packages: list of {"name": ..., "version": ...}
+    result_text: full Ansible output for this run
+    """
+    conn = get_db()
+    cur = conn.cursor()
+    ts = datetime.utcnow().isoformat()
+    for pkg in selected_packages:
+        name = pkg.get("name")
+        version = pkg.get("version")
+        cur.execute(
+            "INSERT INTO updates (machine_id, timestamp, package, version, result) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (machine_id, ts, name, version, result_text),
+        )
+    conn.commit()
+    conn.close()
+
+
+def get_updates_for_machine(machine_id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id, timestamp, package, version, result "
+        "FROM updates WHERE machine_id = ? "
+        "ORDER BY id DESC",
+        (machine_id,),
+    )
+    rows = cur.fetchall()
+    conn.close()
+    return rows

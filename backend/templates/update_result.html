@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h3 class="card-title">
+      Update Result for {{ machine[1] }} <small class="text-muted">({{ machine[2] }})</small>
+    </h3>
+    <p class="card-text">
+      <strong>User:</strong> {{ machine[3] }}
+    </p>
+    <a href="/machine/{{ machine[0] }}" class="btn btn-link p-0">← Back to details</a>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header">
+    Packages updated (requested)
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-sm mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Package</th>
+          <th>Target Version</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pkg in selected %}
+        <tr>
+          <td><code>{{ pkg.name }}</code></td>
+          <td>{{ pkg.version }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    Ansible Output
+  </div>
+  <div class="card-body">
+    <pre class="mb-0 small">{{ result }}</pre>
+  </div>
+</div>
+
+{% endblock %}

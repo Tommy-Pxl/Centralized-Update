@@ -13,6 +13,9 @@
     <a href="/scan/{{ machine[0] }}" class="btn btn-sm btn-info ms-2">
       Rescan
     </a>
+    <a href="/update/{{ machine[0] }}" class="btn btn-sm btn-warning ms-2">
+      Update
+    </a>
   </div>
 </div>
 
@@ -85,6 +88,32 @@
 </table>
 {% else %}
 <p class="text-muted">No scans recorded yet.</p>
+{% endif %}
+
+<h4 class="mt-4">Update History</h4>
+{% if updates %}
+<table class="table table-sm">
+  <thead class="table-light">
+    <tr>
+      <th>ID</th>
+      <th>Timestamp (UTC)</th>
+      <th>Package</th>
+      <th>Target Version</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for u in updates %}
+    <tr>
+      <td>{{ u[0] }}</td>
+      <td>{{ u[1] }}</td>
+      <td><code>{{ u[2] }}</code></td>
+      <td>{{ u[3] }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="text-muted">No updates recorded yet.</p>
 {% endif %}
 
 {% endblock %}

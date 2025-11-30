@@ -17,16 +17,18 @@ from database import (
     save_scan,
     get_scans_for_machine,
     get_latest_scan_for_machine,
+    save_updates,
+    get_updates_for_machine,
 )
 from ansible_interface import run_playbook, rebuild_inventory
 
 import os
-import json
+    import json
 
 app = Flask(__name__)
 
 # ---------------------------------------------------------
-# Initialize DB (Flask 3 safe)
+# Initialize DB
 # ---------------------------------------------------------
 with app.app_context():
     init_db()
@@ -137,6 +139,7 @@ def machine_detail(machine_id):
 
     scans = get_scans_for_machine(machine_id)
     latest_row = get_latest_scan_for_machine(machine_id)
+    updates = get_updates_for_machine(machine_id)
 
     packages = []
     latest_timestamp = None
@@ -157,6 +160,7 @@ def machine_detail(machine_id):
         scans=scans,
         latest_timestamp=latest_timestamp,
         packages=packages,
+        updates=updates,
     )
 
 
@@ -191,7 +195,7 @@ def update(machine_id):
 
     machine_id_val, hostname, ip, username = machine
 
-    # Load latest scan to know which packages are upgradable
+    # Load latest scan to know upgradable packages
     latest_row = get_latest_scan_for_machine(machine_id_val)
     packages = []
     if latest_row:
@@ -205,22 +209,22 @@ def update(machine_id):
         packages = parse_upgradable(upgradable_lines, version_list_results)
 
     if request.method == "GET":
-        # Show update UI: checkboxes + version dropdowns
+        # Show UI with checkboxes + version dropdowns
         return render_template(
             "update.html",
             machine=machine,
             packages=packages,
         )
 
-    # POST: process selected packages
+    # POST: figure out what user requested
     selected = []
 
-    # If "update_all" button used, ignore checkboxes and update everything to latest
+    # "Update ALL" path
     if "update_all" in request.form:
         for pkg in packages:
             selected.append({"name": pkg["name"], "version": "latest"})
     else:
-        # Otherwise, look at checked items and their chosen version
+        # Specific selection path
         for pkg in packages:
             checkbox_name = f"select_{pkg['name']}"
             if checkbox_name in request.form:
@@ -235,7 +239,17 @@ def update(machine_id):
 
     extra_vars = {"packages": selected}
     result = run_playbook("ansible/playbook_update.yml", machine_id_val, extra_vars=extra_vars)
-    return f"<pre>{result}</pre>"
+
+    # Log the update run (one row per package)
+    save_updates(machine_id_val, selected, result)
+
+    # Show a result page with summary + full Ansible output
+    return render_template(
+        "update_result.html",
+        machine=machine,
+        selected=selected,
+        result=result,
+    )
 
 
 @app.route("/generate_enrollment_script")

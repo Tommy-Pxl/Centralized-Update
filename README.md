@@ -7,35 +7,18 @@ A centralized web-based update management system for Ubuntu VMs using:
 - Docker (containerization)
 - SSH (secure VM access)
 
-All components run on a single master VM.
+I dont know anymore, 
+it goes like
 
----
+clone this, run setup
+it will run a set up docker and all prereqs, 
+then it will grab docker, install ansible and run flask (pythonAPIthingy)
 
-## Features
+the VM that runs setup.sh will be the controller vm
 
-### VM Management
-- Add unlimited client VMs
-- Managed over SSH using Ansible
-- Dashboard shows all connected systems
+clients on the same network can access the ip of the controller VM and "enroll"
+run the enrollment script on the client vm
+updates can be scanned on the VM, and results saved to a database, 
 
-### Software Inventory
-- Displays all installed packages per VM
-- Shows available updates (apt)
-- Highlights out-of-date software
-
-### Update Actions
-- Update to latest version
-- Update to a specific version (dropdown)
-- View changelog / version differences
-
-### Logging
-- Logs before/after versions
-- Logs changelog entries
-- Logs timestamp
-- Logs who performed the update
-- All data stored in SQLite database
-
----
-
-## Architecture
+when updates are applied, prior version info and current version info is also saved alongside timestamps
 
