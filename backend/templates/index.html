@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1 class="mb-4">Managed Machines</h1>
+
+<!-- Add Machine Form -->
+<form action="/add_machine" method="POST" class="mb-3">
+    <div class="input-group">
+        <input type="text" name="hostname" class="form-control"
+               placeholder="VM hostname or IP" required>
+        <button class="btn btn-success">Add Machine</button>
+    </div>
+</form>
+
+<!-- Machines Table -->
+<table class="table table-striped table-bordered">
+<thead>
+<tr>
+    <th>Hostname</th>
+    <th>Last Scanned</th>
+    <th>Actions</th>
+</tr>
+</thead>
+
+<tbody>
+{% for m in machines %}
+<tr>
+    <td>{{ m.hostname }}</td>
+
+    <td>
+        {% if m.last_scanned %}
+            <span class="badge bg-info text-dark">{{ m.last_scanned }}</span>
+        {% else %}
+            <span class="badge bg-secondary">Never Scanned</span>
+        {% endif %}
+    </td>
+
+    <td>
+        <a class="btn btn-primary btn-sm"
+           href="/machine/{{ m.hostname }}">
+            View Software
+        </a>
+
+        <a class="btn btn-warning btn-sm"
+           href="/scan/{{ m.hostname }}">
+            Scan
+        </a>
+
+        <a class="btn btn-secondary btn-sm"
+           href="/history/{{ m.hostname }}">
+            History
+        </a>
+    </td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+{% endblock %}

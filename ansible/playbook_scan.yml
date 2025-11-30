@@ -1,0 +1,51 @@
+- hosts: "{{ target }}"
+  become: yes
+  gather_facts: no
+
+  tasks:
+
+    - name: Get installed packages
+      shell: apt list --installed
+      register: installed_output
+
+    - name: Get upgradable packages
+      shell: apt list --upgradable 2>/dev/null || true
+      register: upgradable_output
+
+    - name: Extract package names from upgradable list
+      set_fact:
+        upgradable_packages: >-
+          {{ upgradable_output.stdout_lines
+             | map('regex_search', '^(.*?)/')
+             | map('first')
+             | reject('equalto', None)
+             | list }}
+
+    - name: Get version list for each upgradable package
+      shell: apt-cache madison {{ item }}
+      loop: "{{ upgradable_packages }}"
+      register: version_list_output
+      when: upgradable_packages | length > 0
+
+    - name: Get changelogs for each upgradable package
+      shell: apt changelog {{ item }} || echo "No changelog available."
+      loop: "{{ upgradable_packages }}"
+      register: changelog_output
+      when: upgradable_packages | length > 0
+
+    - debug:
+        msg:
+          installed: "{{ installed_output.stdout }}"
+          upgradable: "{{ upgradable_output.stdout }}"
+          version_list: >
+            {%- if version_list_output is defined -%}
+              {{ version_list_output.results | json_query('[].stdout') }}
+            {%- else -%}
+              []
+            {%- endif -%}
+          changelogs: >
+            {%- if changelog_output is defined -%}
+              {{ changelog_output.results | json_query('[].stdout') }}
+            {%- else -%}
+              []
+            {%- endif -%}

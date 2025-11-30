@@ -1,0 +1,25 @@
+version: "3.9"
+
+services:
+
+  backend:
+    build: ./backend
+    container_name: centralized_update_backend
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+    volumes:
+      - ./backend/db.sqlite:/app/db.sqlite
+    depends_on:
+      - ansible_runner
+
+  ansible_runner:
+    build: ./ansible
+    container_name: centralized_update_ansible_runner
+    restart: unless-stopped
+    volumes:
+      - ~/.ssh:/root/.ssh:ro
+
+networks:
+  default:
+    driver: bridge

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>{{ package }} — Select Version</h1>
+
+<form method="GET"
+      action="/update/{{ hostname }}/{{ package }}">
+    
+    <div class="mb-3">
+        <label class="form-label">Available Versions:</label>
+        <select class="form-select" name="version">
+            {% for v in versions %}
+            <option value="{{ v }}">{{ v }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <button class="btn btn-primary" type="submit">Update</button>
+</form>
+
+<a class="btn btn-secondary mt-3" href="/machine/{{ hostname }}">Back</a>
+
+{% endblock %}

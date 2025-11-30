@@ -1,0 +1,6 @@
+Flask
+requests
+SQLAlchemy
+Jinja2
+ansible
+docker

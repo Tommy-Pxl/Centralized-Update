@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>{{ machine.hostname }} — Installed Software</h1>
+
+<!-- Re-scan button -->
+<a class="btn btn-primary mb-3" href="/scan/{{ machine.hostname }}">
+    Re-Scan Machine
+</a>
+
+<table class="table table-bordered table-striped">
+<thead>
+<tr>
+    <th>Package</th>
+    <th>Installed</th>
+    <th>Status</th>
+    <th>Actions</th>
+</tr>
+</thead>
+<tbody>
+
+{% for s in software %}
+<tr>
+    <td>{{ s.package }}</td>
+    <td>{{ s.installed_version }}</td>
+
+    <td>
+        {% if s.new_version %}
+            <span class="badge bg-warning text-dark">
+                Update: {{ s.installed_version }} → {{ s.new_version }}
+            </span>
+        {% else %}
+            <span class="badge bg-success">Up-to-date</span>
+        {% endif %}
+    </td>
+
+    <td>
+        {% if s.new_version %}
+            <!-- Update to latest -->
+            <a class="btn btn-sm btn-warning"
+               href="/update/{{ machine.hostname }}/{{ s.package }}?version=latest">
+                Update Latest
+            </a>
+
+            <!-- Select specific version -->
+            <a class="btn btn-sm btn-info"
+               href="/versions/{{ machine.hostname }}/{{ s.package }}">
+                Specific Version
+            </a>
+
+            <!-- View changelog -->
+            <a class="btn btn-sm btn-secondary"
+               href="/changelog/{{ machine.hostname }}/{{ s.package }}">
+                View Changelog
+            </a>
+        {% else %}
+            <span class="text-muted">No actions</span>
+        {% endif %}
+    </td>
+</tr>
+{% endfor %}
+
+</tbody>
+</table>
+
+<a class="btn btn-secondary" href="/">Back</a>
+
+{% endblock %}

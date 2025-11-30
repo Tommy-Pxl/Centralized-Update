@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>Changelog for {{ package }}</h1>
+
+<pre style="background:#f5f5f5; padding:20px;">
+{{ changelog if changelog else "No changelog available." }}
+</pre>
+
+<a class="btn btn-secondary" href="/machine/{{ hostname }}">Back</a>
+
+{% endblock %}
