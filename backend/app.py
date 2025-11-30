@@ -73,7 +73,7 @@ def parse_upgradable(upgradable_lines, version_list_results):
             continue
 
         name = parts[0].split("/")[0]
-        current = parts[1]
+        current = parts[1]  # candidate version
         from_ver = None
 
         if "[upgradable from:" in line:
@@ -264,29 +264,59 @@ def update(machine_id):
             packages=packages,
         )
 
-    # POST: figure out what user requested
-    selected = []
+    # POST: we maintain two lists:
+    #  - selected_ansible: what we send to Ansible (may contain "latest")
+    #  - selected_db:      what we store/display, with numeric version where known
+    selected_ansible = []
+    selected_db = []
 
     # "Update ALL" path
     if "update_all" in request.form:
         for pkg in packages:
-            selected.append({"name": pkg["name"], "version": "latest"})
+            # What Ansible sees
+            selected_ansible.append({
+                "name": pkg["name"],
+                "version": "latest",   # still use Ansible's "latest"
+            })
+
+            # What we store/display: candidate version from scan
+            target_display = pkg.get("current") or "latest"
+            selected_db.append({
+                "name": pkg["name"],
+                "version": target_display,
+            })
     else:
         # Specific selection path
         for pkg in packages:
             checkbox_name = f"select_{pkg['name']}"
             if checkbox_name in request.form:
                 version_field = f"version_{pkg['name']}"
-                version_val = request.form.get(version_field, "latest") or "latest"
-                selected.append({"name": pkg["name"], "version": version_val})
+                v_raw = request.form.get(version_field, "latest") or "latest"
 
-    if not selected:
+                # For Ansible:
+                selected_ansible.append({
+                    "name": pkg["name"],
+                    "version": v_raw,
+                })
+
+                # For DB display:
+                if v_raw == "latest":
+                    target_display = pkg.get("current") or "latest"
+                else:
+                    target_display = v_raw
+
+                selected_db.append({
+                    "name": pkg["name"],
+                    "version": target_display,
+                })
+
+    if not selected_ansible:
         return "No packages selected for update.", 400
 
     rebuild_inventory()
 
-    extra_vars = {"packages": selected}
-    print(f"[UPDATE] Machine {machine_id_val} ({hostname}) selected packages: {selected}")
+    extra_vars = {"packages": selected_ansible}
+    print(f"[UPDATE] Machine {machine_id_val} ({hostname}) selected packages: {selected_ansible}")
     result = run_playbook(
         "ansible/playbook_update.yml",
         machine_id_val,
@@ -295,14 +325,15 @@ def update(machine_id):
 
     summary = parse_ansible_summary(result)
 
-    # Log the update run (one row per package)
-    save_updates(machine_id_val, selected, result)
+    # Log the update run (one row per package) using the "display" versions
+    save_updates(machine_id_val, selected_db, result)
 
-    # Show a result page with summary + full Ansible output
+    # Show a result page with summary + full Ansible output,
+    # and show the display versions there too.
     return render_template(
         "update_result.html",
         machine=machine,
-        selected=selected,
+        selected=selected_db,
         result=result,
         summary=summary,
     )
