@@ -1,72 +1,56 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="card mb-3">
-  <div class="card-body">
-    <h3 class="card-title">
-      {{ machine[1] }} <small class="text-muted">({{ machine[2] }})</small>
-    </h3>
-    <p class="card-text">
-      <strong>User:</strong> {{ machine[3] }}
-    </p>
-    <a href="/machines" class="btn btn-link p-0">← Back to machines</a>
-    <a href="/scan/{{ machine[0] }}" class="btn btn-sm btn-info ms-2">
-      Rescan
-    </a>
-    <a href="/update/{{ machine[0] }}" class="btn btn-sm btn-warning ms-2">
-      Update
-    </a>
-  </div>
+<h2>
+  Machine: {{ machine[1] }}
+  <small class="text-muted">({{ machine[2] }})</small>
+</h2>
+
+<div class="mb-3">
+  <a href="{{ url_for('scan', machine_id=machine[0]) }}" class="btn btn-primary btn-sm">
+    Scan Now
+  </a>
+  <a href="{{ url_for('update', machine_id=machine[0]) }}" class="btn btn-warning btn-sm">
+    Update Packages
+  </a>
+  <a href="{{ url_for('generate_enrollment_script') }}" class="btn btn-secondary btn-sm">
+    Download Client Enrollment Script
+  </a>
 </div>
 
-{% if packages and latest_timestamp %}
-<div class="card mb-4">
-  <div class="card-header">
-    Latest Scan — {{ latest_timestamp }}
-  </div>
-  <div class="card-body">
-    <p class="text-muted">
-      Showing upgradable packages and available versions.
-    </p>
-    <table class="table table-sm table-hover align-middle">
-      <thead class="table-light">
-        <tr>
-          <th>Package</th>
-          <th>Current Version</th>
-          <th>Upgradable From</th>
-          <th>Available Versions (apt-cache madison)</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for pkg in packages %}
-        <tr>
-          <td><code>{{ pkg.name }}</code></td>
-          <td>{{ pkg.current }}</td>
-          <td>
-            {% if pkg.from %}
-              {{ pkg.from }}
-            {% else %}
-              <span class="text-muted">N/A</span>
-            {% endif %}
-          </td>
-          <td>
-            {% if pkg.versions %}
-              <pre class="mb-0 small">{{ pkg.versions | join('\n') }}</pre>
-            {% else %}
-              <span class="text-muted">No version info</span>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
+<hr>
+
+<h4>Latest Scan</h4>
+{% if latest_timestamp %}
+<p class="text-muted">Last scan at: {{ latest_timestamp }} (UTC)</p>
+
+{% if packages %}
+<table class="table table-sm">
+  <thead class="table-light">
+    <tr>
+      <th>Package</th>
+      <th>Current (candidate)</th>
+      <th>Upgradable From</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in packages %}
+    <tr>
+      <td><code>{{ p.name }}</code></td>
+      <td>{{ p.current }}</td>
+      <td>{{ p.from or "-" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 {% else %}
-<div class="alert alert-info">
-  No scan data yet for this machine. Click <strong>Rescan</strong> to run a scan.
-</div>
+<p class="text-muted">No upgradable packages found in the last scan.</p>
 {% endif %}
+{% else %}
+<p class="text-muted">This machine has not been scanned yet.</p>
+{% endif %}
+
+<hr>
 
 <h4>Scan History</h4>
 {% if scans %}
@@ -90,7 +74,9 @@
 <p class="text-muted">No scans recorded yet.</p>
 {% endif %}
 
-<h4 class="mt-4">Update History</h4>
+<hr>
+
+<h4>Update History</h4>
 {% if updates %}
 <table class="table table-sm">
   <thead class="table-light">
@@ -98,7 +84,8 @@
       <th>ID</th>
       <th>Timestamp (UTC)</th>
       <th>Package</th>
-      <th>Version (recorded)</th>
+      <th>Version (Status)</th>
+      <th>Action</th>
     </tr>
   </thead>
   <tbody>
@@ -107,7 +94,20 @@
       <td>{{ u[0] }}</td>
       <td>{{ u[1] }}</td>
       <td><code>{{ u[2] }}</code></td>
-      <td>{{ u[3] }}</td>
+      <td>
+        {{ u[3] }}
+        {% if u[4] %}
+          ({{ u[4] }})
+        {% endif %}
+      </td>
+      <td>
+        <a
+          href="{{ url_for('downgrade_package', machine_id=machine[0], package=u[2]) }}"
+          class="btn btn-outline-secondary btn-sm"
+        >
+          Downgrade
+        </a>
+      </td>
     </tr>
     {% endfor %}
   </tbody>
@@ -115,6 +115,5 @@
 {% else %}
 <p class="text-muted">No updates recorded yet.</p>
 {% endif %}
-
 
 {% endblock %}

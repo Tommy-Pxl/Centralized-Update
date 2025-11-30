@@ -18,11 +18,12 @@
       loop_control:
         label: "{{ item.name }}"
 
-    - name: Update selected packages to specific versions
+    - name: Update selected packages to specific versions (allow downgrade)
       when: item.version != "latest"
       apt:
         name: "{{ item.name }}={{ item.version }}"
         state: present
+        allow_downgrade: yes
       loop: "{{ packages }}"
       loop_control:
         label: "{{ item.name }}={{ item.version }}"

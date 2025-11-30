@@ -117,7 +117,7 @@ def parse_ansible_summary(result_text: str):
     recap_line = None
 
     for line in lines:
-        # Typical recap line: "ubuntu2 : ok=4 changed=3 unreachable=0 failed=1 skipped=0 ..."
+        # Typical recap line: "ubuntu : ok=4 changed=3 unreachable=0 failed=1 skipped=0 ..."
         if "failed=" in line and "unreachable=" in line and ":" in line:
             recap_line = line.strip()
 
@@ -264,7 +264,7 @@ def update(machine_id):
             packages=packages,
         )
 
-    # POST: we maintain two lists:
+    # POST: two views of selection:
     #  - selected_ansible: what we send to Ansible (may contain "latest")
     #  - selected_db:      what we store/display, with numeric version where known
     selected_ansible = []
@@ -273,13 +273,13 @@ def update(machine_id):
     # "Update ALL" path
     if "update_all" in request.form:
         for pkg in packages:
-            # What Ansible sees
+            # For Ansible ("latest")
             selected_ansible.append({
                 "name": pkg["name"],
-                "version": "latest",   # still use Ansible's "latest"
+                "version": "latest",
             })
 
-            # What we store/display: candidate version from scan
+            # For DB/display: numeric version from scan if we have it
             target_display = pkg.get("current") or "latest"
             selected_db.append({
                 "name": pkg["name"],
@@ -299,7 +299,7 @@ def update(machine_id):
                     "version": v_raw,
                 })
 
-                # For DB display:
+                # For DB/display:
                 if v_raw == "latest":
                     target_display = pkg.get("current") or "latest"
                 else:
@@ -328,8 +328,79 @@ def update(machine_id):
     # Log the update run (one row per package) using the "display" versions
     save_updates(machine_id_val, selected_db, result)
 
-    # Show a result page with summary + full Ansible output,
-    # and show the display versions there too.
+    return render_template(
+        "update_result.html",
+        machine=machine,
+        selected=selected_db,
+        result=result,
+        summary=summary,
+    )
+
+
+@app.route("/downgrade/<int:machine_id>/<package>", methods=["GET", "POST"])
+def downgrade_package(machine_id, package):
+    """
+    From the Update History, user can click "Downgrade" for a package.
+    This shows a version dropdown based on the latest scan's version list.
+    """
+    machine = get_machine(machine_id)
+    if not machine:
+        return "Machine not found", 404
+
+    machine_id_val, hostname, ip, username = machine
+
+    latest_row = get_latest_scan_for_machine(machine_id_val)
+    if not latest_row:
+        return "No scan data available for this machine.", 400
+
+    _, _, data_json = latest_row
+    try:
+        data = json.loads(data_json)
+    except json.JSONDecodeError:
+        data = {}
+
+    upgradable_lines = data.get("upgradable", [])
+    version_list_results = data.get("version_list", [])
+    packages = parse_upgradable(upgradable_lines, version_list_results)
+
+    pkg_info = next((p for p in packages if p["name"] == package), None)
+    if not pkg_info:
+        return f"No version information found for package '{package}' in latest scan.", 400
+
+    versions = pkg_info.get("versions", [])
+    current = pkg_info.get("current")
+    from_ver = pkg_info.get("from")
+
+    if request.method == "GET":
+        return render_template(
+            "version_select.html",
+            machine=machine,
+            package=package,
+            versions=versions,
+            current=current,
+            from_ver=from_ver,
+        )
+
+    # POST: specific version chosen for this package
+    selected_version = request.form.get("version")
+    if not selected_version:
+        return "No version specified for downgrade.", 400
+
+    selected_ansible = [{"name": package, "version": selected_version}]
+    selected_db = [{"name": package, "version": selected_version}]
+
+    rebuild_inventory()
+
+    extra_vars = {"packages": selected_ansible}
+    result = run_playbook(
+        "ansible/playbook_update.yml",
+        machine_id_val,
+        extra_vars=extra_vars,
+    )
+
+    summary = parse_ansible_summary(result)
+    save_updates(machine_id_val, selected_db, result)
+
     return render_template(
         "update_result.html",
         machine=machine,
