@@ -23,7 +23,7 @@ from database import (
 from ansible_interface import run_playbook, rebuild_inventory
 
 import os
-    import json
+import json
 
 app = Flask(__name__)
 
@@ -238,7 +238,12 @@ def update(machine_id):
     rebuild_inventory()
 
     extra_vars = {"packages": selected}
-    result = run_playbook("ansible/playbook_update.yml", machine_id_val, extra_vars=extra_vars)
+    print(f"[UPDATE] Machine {machine_id_val} ({hostname}) selected packages: {selected}")
+    result = run_playbook(
+        "ansible/playbook_update.yml",
+        machine_id_val,
+        extra_vars=extra_vars,
+    )
 
     # Log the update run (one row per package)
     save_updates(machine_id_val, selected, result)
