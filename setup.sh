@@ -27,11 +27,36 @@ echo "[+] Installing required packages..."
 apt install -y python3 python3-pip curl git ansible sshpass
 
 #--------------------------------------------------------
-# Install Docker
+# Install Docker (universal method, works on all Ubuntu versions)
 #--------------------------------------------------------
-echo "[+] Installing Docker..."
-apt install -y docker.io docker-compose-plugin
+echo "[+] Installing Docker (universal method)..."
+
+# Remove old Docker versions (if present)
+apt remove -y docker docker-engine docker.io containerd runc || true
+
+# Install prerequisites
+apt install -y ca-certificates curl gnupg lsb-release
+
+# Add Docker’s official GPG key
+mkdir -m 0755 -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+    | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+# Add Docker repository
+echo \
+  "deb [arch=$(dpkg --print-architecture) \
+  signed-by=/etc/apt/keyrings/docker.gpg] \
+  https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" \
+  > /etc/apt/sources.list.d/docker.list
+
+# Update again and install actual Docker packages
+apt update -y
+apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# Allow the primary user to run docker
 usermod -aG docker $SUDO_USER
+echo "[+] Docker installed successfully!"
 
 #--------------------------------------------------------
 # Generate SSH keys for Ansible
