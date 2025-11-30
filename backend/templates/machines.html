@@ -2,7 +2,14 @@
 {% block content %}
 <h2>Managed VMs</h2>
 
-<a class="btn btn-primary mb-3" href="/machines/add">Add New VM</a>
+<div class="mb-3">
+  <a class="btn btn-secondary" href="/generate_enrollment_script">
+    Download Enrollment Script
+  </a>
+  <a class="btn btn-primary" href="/machines/add">
+    Add New VM
+  </a>
+</div>
 
 <table class="table table-bordered">
   <thead class="table-dark">
@@ -25,12 +32,10 @@
       <td>
         <a href="/scan/{{ m[0] }}" class="btn btn-info btn-sm">Scan</a>
         <a href="/update/{{ m[0] }}" class="btn btn-warning btn-sm">Update</a>
-        <a href="/generate_client_script/{{ m[0] }}" class="btn btn-secondary btn-sm">Client Setup Script</a>
         <a href="/machines/delete/{{ m[0] }}" class="btn btn-danger btn-sm">Delete</a>
       </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
-
 {% endblock %}

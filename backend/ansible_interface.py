@@ -38,8 +38,9 @@ def run_playbook(playbook, machine_id):
     ]
 
     env = os.environ.copy()
-    # Disable host key checking for this project (avoids "Host key verification failed")
+    # Disable host key checking and specify private key file
     env["ANSIBLE_HOST_KEY_CHECKING"] = "False"
+    env["ANSIBLE_PRIVATE_KEY_FILE"] = "/app/ssh/id_rsa"
 
     try:
         output = subprocess.check_output(cmd, stderr=subprocess.STDOUT, env=env)

@@ -39,7 +39,7 @@ def machines_page():
 
 
 # ---------------------------------------------------------
-# Add machine
+# Add machine manually
 # ---------------------------------------------------------
 @app.route("/machines/add", methods=["GET", "POST"])
 def machines_add():
@@ -94,21 +94,15 @@ def update(machine_id):
 
 
 # ---------------------------------------------------------
-# Generate Client Setup Script
+# GLOBAL: Generate Enrollment Script (no machine_id needed)
 # ---------------------------------------------------------
-@app.route("/generate_client_script/<int:machine_id>")
-def generate_client_script(machine_id):
-    machine = get_machine(machine_id)
-    if not machine:
-        return "Machine not found", 404
-
-    id, hostname, ip, username = machine
-
+@app.route("/generate_enrollment_script")
+def generate_enrollment_script():
     # SSH public key mounted from host into /app/ssh/id_rsa.pub
     ssh_key_path = "/app/ssh/id_rsa.pub"
 
     if not os.path.exists(ssh_key_path):
-        return f"SSH key not found at {ssh_key_path}", 500
+        return f"SSH public key not found at {ssh_key_path}", 500
 
     with open(ssh_key_path, "r") as f:
         pubkey = f.read().strip()
@@ -141,6 +135,8 @@ def api_enroll():
 
     if existing:
         update_machine_ip(hostname, ip)
+        # optionally force username to ansible:
+        # update_machine_username(hostname, "ansible")
     else:
         # new machine, always ansible user on client
         add_machine(hostname, ip, "ansible")
