@@ -11,7 +11,7 @@
   </a>
 </div>
 
-<table class="table table-bordered">
+<table class="table table-bordered table-striped">
   <thead class="table-dark">
     <tr>
       <th>ID</th>
@@ -30,9 +30,18 @@
       <td>{{ m[2] }}</td>
       <td>{{ m[3] }}</td>
       <td>
-        <a href="/scan/{{ m[0] }}" class="btn btn-info btn-sm">Scan</a>
-        <a href="/update/{{ m[0] }}" class="btn btn-warning btn-sm">Update</a>
-        <a href="/machines/delete/{{ m[0] }}" class="btn btn-danger btn-sm">Delete</a>
+        <a href="/machine/{{ m[0] }}" class="btn btn-outline-secondary btn-sm">
+          Details
+        </a>
+        <a href="/scan/{{ m[0] }}" class="btn btn-info btn-sm">
+          Scan
+        </a>
+        <a href="/update/{{ m[0] }}" class="btn btn-warning btn-sm">
+          Update
+        </a>
+        <a href="/machines/delete/{{ m[0] }}" class="btn btn-danger btn-sm">
+          Delete
+        </a>
       </td>
     </tr>
     {% endfor %}

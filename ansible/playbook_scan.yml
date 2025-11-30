@@ -2,32 +2,47 @@
   gather_facts: no
   tasks:
 
-    - name: Get installed packages
-      shell: apt list --installed
-      register: installed_output
-
     - name: Get upgradable packages
       shell: apt list --upgradable
       register: upgradable_output
 
-    - name: Extract package names from upgradable list
+    - name: Extract raw package names from upgradable list
       set_fact:
-        upgradable_names: "{{ upgradable_output.stdout_lines | map('regex_search', '^(.*?)/') | list }}"
+        upgradable_names_raw: >
+          {{ upgradable_output.stdout_lines
+             | map('regex_search', '^(.*?)/')
+             | list }}
+
+    - name: Clean up package names (drop None and trailing slashes)
+      set_fact:
+        upgradable_names: >
+          {{ upgradable_names_raw
+             | reject('equalto', None)
+             | map('regex_replace', '/$', '')
+             | list }}
 
     - name: Get available version list for each upgradable package
       shell: apt-cache madison {{ item }}
       loop: "{{ upgradable_names }}"
       register: version_list_output
+      failed_when: false
 
-    - name: Get changelogs
-      shell: apt changelog {{ item }}
-      loop: "{{ upgradable_names }}"
-      register: changelog_output
+    - name: Ensure scans directory exists on controller
+      delegate_to: localhost
+      file:
+        path: /app/ansible/scans
+        state: directory
+        mode: "0755"
 
-    - name: Show combined results
-      debug:
-        msg:
-          installed: "{{ installed_output.stdout }}"
-          upgradable: "{{ upgradable_output.stdout }}"
-          version_list: "{{ version_list_output.results }}"
-          changelogs: "{{ changelog_output.results }}"
+    - name: Write scan JSON to controller
+      delegate_to: localhost
+      copy:
+        dest: "/app/ansible/scans/{{ inventory_hostname }}.json"
+        content: >
+          {{
+            {
+              "upgradable": upgradable_output.stdout_lines,
+              "upgradable_names": upgradable_names,
+              "version_list": version_list_output.results
+            } | to_nice_json
+          }}

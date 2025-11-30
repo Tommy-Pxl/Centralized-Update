@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h3 class="card-title">
+      {{ machine[1] }} <small class="text-muted">({{ machine[2] }})</small>
+    </h3>
+    <p class="card-text">
+      <strong>User:</strong> {{ machine[3] }}
+    </p>
+    <a href="/machines" class="btn btn-link p-0">← Back to machines</a>
+    <a href="/scan/{{ machine[0] }}" class="btn btn-sm btn-info ms-2">
+      Rescan
+    </a>
+  </div>
+</div>
+
+{% if packages and latest_timestamp %}
+<div class="card mb-4">
+  <div class="card-header">
+    Latest Scan — {{ latest_timestamp }}
+  </div>
+  <div class="card-body">
+    <p class="text-muted">
+      Showing upgradable packages and available versions.
+    </p>
+    <table class="table table-sm table-hover align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Package</th>
+          <th>Current Version</th>
+          <th>Upgradable From</th>
+          <th>Available Versions (apt-cache madison)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pkg in packages %}
+        <tr>
+          <td><code>{{ pkg.name }}</code></td>
+          <td>{{ pkg.current }}</td>
+          <td>
+            {% if pkg.from %}
+              {{ pkg.from }}
+            {% else %}
+              <span class="text-muted">N/A</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if pkg.versions %}
+              <pre class="mb-0 small">{{ pkg.versions | join('\n') }}</pre>
+            {% else %}
+              <span class="text-muted">No version info</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-info">
+  No scan data yet for this machine. Click <strong>Rescan</strong> to run a scan.
+</div>
+{% endif %}
+
+<h4>Scan History</h4>
+{% if scans %}
+<table class="table table-sm">
+  <thead class="table-light">
+    <tr>
+      <th>ID</th>
+      <th>Timestamp (UTC)</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in scans %}
+    <tr>
+      <td>{{ s[0] }}</td>
+      <td>{{ s[1] }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="text-muted">No scans recorded yet.</p>
+{% endif %}
+
+{% endblock %}
