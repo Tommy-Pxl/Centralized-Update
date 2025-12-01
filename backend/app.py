@@ -438,7 +438,18 @@ def generate_enrollment_script():
 def api_enroll():
     data = request.json
     hostname = data.get("hostname")
-    ip = data.get("ip")
+    # Use the client-reported IP unless it looks like a VirtualBox NAT
+    # address (10.0.2.*), which is a common false-positive from
+    # `hostname -I` inside VMs. In those cases (or if no IP provided)
+    # prefer the actual source IP of the HTTP request.
+    ip_client = data.get("ip")
+    if ip_client:
+        if ip_client.startswith("10.0.2."):
+            ip = request.remote_addr
+        else:
+            ip = ip_client
+    else:
+        ip = request.remote_addr
 
     existing = get_machine_by_hostname(hostname)
 

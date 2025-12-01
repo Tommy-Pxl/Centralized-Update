@@ -129,7 +129,17 @@ HOSTNAME_SHORT=$(hostname -s)
 if [ -n "${CLIENT_IP}" ]; then
     IP_ADDR="${CLIENT_IP}"
 else
-    IP_ADDR=$(hostname -I 2>/dev/null | awk '{print $1}')
+    # Try to determine the IP address used for outbound traffic first
+    # (works when the primary interface is not the first entry from hostname -I).
+    IP_ADDR=""
+    if command -v ip >/dev/null 2>&1; then
+        IP_ADDR=$(ip route get 8.8.8.8 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i=="src") print $(i+1)}' | head -n1)
+    fi
+
+    # Fallback to hostname -I if ip route didn't work
+    if [ -z "${IP_ADDR}" ]; then
+        IP_ADDR=$(hostname -I 2>/dev/null | awk '{print $1}')
+    fi
 fi
 
 if [ -z "${IP_ADDR}" ]; then
