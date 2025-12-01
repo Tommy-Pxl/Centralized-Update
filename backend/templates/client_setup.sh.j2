@@ -137,7 +137,6 @@ fi
     if [ -z "${IP_ADDR}" ]; then
         IP_ADDR=$(hostname -I 2>/dev/null | awk '{print $1}')
     fi
-fi
 
 if [ -z "${IP_ADDR}" ]; then
     echo "    [WARNING] Could not auto-detect IP address. Using 127.0.0.1."
