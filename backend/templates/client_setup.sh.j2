@@ -113,25 +113,22 @@ else
     MASTER_NET_3=$(echo "${MASTER_IP}" | awk -F. '{print $1"."$2"."$3}')
     IP_ADDR=""
 
-    if [ -n "${CANDIDATES}" ]; then
+    for ip in ${CANDIDATES}; do
+        if echo "${ip}" | grep -qE "^${MASTER_NET_3}\."; then
+            IP_ADDR="${ip}"
+            break
+        fi
+    done
+
+    if [ -z "${IP_ADDR}" ]; then
         for ip in ${CANDIDATES}; do
-            if echo "${ip}" | grep -qE "^${MASTER_NET_3}\."; then
+            if [ "${ip}" != "127.0.0.1" ]; then
                 IP_ADDR="${ip}"
                 break
             fi
         done
     fi
-
-    if [ -z "${IP_ADDR}" ]; then
-        if [ -n "${CANDIDATES}" ]; then
-            for ip in ${CANDIDATES}; do
-                if [ "${ip}" != "127.0.0.1" ]; then
-                    IP_ADDR="${ip}"
-                    break
-                fi
-            done
-        fi
-    fi
+fi
 
     if command -v ip >/dev/null 2>&1; then
         IP_ADDR=$(ip route get 8.8.8.8 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i=="src") print $(i+1)}' | head -n1)
