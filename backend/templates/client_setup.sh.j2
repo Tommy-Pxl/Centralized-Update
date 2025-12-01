@@ -125,11 +125,32 @@ echo "[+] Calling master enrollment API..."
 
 HOSTNAME_SHORT=$(hostname -s)
 
-# Allow override: CLIENT_IP=<ip> sudo bash client_setup.sh
+# Allow override: CLIENT_IP=<ip> curl ... | sudo CLIENT_IP=... bash
 if [ -n "${CLIENT_IP}" ]; then
     IP_ADDR="${CLIENT_IP}"
 else
-    IP_ADDR=$(hostname -I 2>/dev/null | awk '{print $1}')
+    # Collect all candidate IPs from hostname -I
+    CANDIDATES=$(hostname -I 2>/dev/null || true)
+    MASTER_NET_3=$(echo "${MASTER_IP}" | awk -F. '{print $1"."$2"."$3}')
+    IP_ADDR=""
+
+    # 1) Prefer IPs on same /24 as master (e.g. 192.168.127.x)
+    for ip in ${CANDIDATES}; do
+        if echo "${ip}" | grep -qE "^${MASTER_NET_3}\."; then
+            IP_ADDR="${ip}"
+            break
+        fi
+    done
+
+    # 2) If none matched, pick first non-loopback address
+    if [ -z "${IP_ADDR}" ]; then
+        for ip in ${CANDIDATES}; do
+            if [ "${ip}" != "127.0.0.1" ]; then
+                IP_ADDR="${ip}"
+                break
+            fi
+        done
+    fi
 fi
 
 if [ -z "${IP_ADDR}" ]; then
