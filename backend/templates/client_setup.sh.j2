@@ -131,6 +131,7 @@ else
                 fi
             done
         fi
+    fi
 
     if command -v ip >/dev/null 2>&1; then
         IP_ADDR=$(ip route get 8.8.8.8 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i=="src") print $(i+1)}' | head -n1)
