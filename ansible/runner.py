@@ -17,10 +17,7 @@ cmd = [
 ]
 
 result = subprocess.run(cmd, capture_output=True, text=True)
-
-# Print raw output so backend can parse
 print(result.stdout)
 
-# Print stderr for debugging (but does not break parsing)
 if result.stderr.strip():
     print(result.stderr)

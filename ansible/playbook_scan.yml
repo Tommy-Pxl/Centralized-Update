@@ -4,6 +4,12 @@
 
   tasks:
 
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        register: apt_update_result
+        failed_when: false
+
     - name: Get upgradable packages
       shell: apt list --upgradable
       register: upgradable_output

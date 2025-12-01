@@ -23,7 +23,7 @@ def rebuild_inventory():
             f.write(f"{hostname} ansible_host={ip} ansible_user={username}\n")
 
 
-def run_playbook(playbook, machine_id, extra_vars=None, timeout_seconds=180):
+def run_playbook(playbook, machine_id, extra_vars=None):
     machines = {m[0]: m for m in get_machines()}
     if machine_id not in machines:
         return "Machine not found"
@@ -45,8 +45,6 @@ def run_playbook(playbook, machine_id, extra_vars=None, timeout_seconds=180):
     env = os.environ.copy()
     env["ANSIBLE_HOST_KEY_CHECKING"] = "False"
     env["ANSIBLE_PRIVATE_KEY_FILE"] = "/app/ssh/id_rsa"
-
-    # Debug logging into container logs
     print(f"[ANSIBLE] Running on {hostname}: {' '.join(cmd)}")
     if extra_vars:
         print(f"[ANSIBLE] extra_vars = {json.dumps(extra_vars)}")
@@ -56,18 +54,9 @@ def run_playbook(playbook, machine_id, extra_vars=None, timeout_seconds=180):
             cmd,
             stderr=subprocess.STDOUT,
             env=env,
-            timeout=timeout_seconds,
         )
         print(f"[ANSIBLE] Completed playbook for {hostname}")
         return output.decode()
-    except subprocess.TimeoutExpired as e:
-        partial = e.output.decode() if e.output else ""
-        msg = (
-            f"Timed out after {timeout_seconds} seconds while running ansible-playbook.\n\n"
-            f"Partial output (if any):\n{partial}"
-        )
-        print(f"[ANSIBLE] TIMEOUT for {hostname}")
-        return msg
     except subprocess.CalledProcessError as e:
         print(f"[ANSIBLE] ERROR for {hostname}")
         return e.output.decode()

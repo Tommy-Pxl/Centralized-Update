@@ -9,6 +9,4 @@ RUN apt update && \
     dpkg-reconfigure -f noninteractive tzdata
 
 WORKDIR /ansible
-
-# Playbooks will be bind-mounted at runtime
 CMD ["sleep", "infinity"]

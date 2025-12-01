@@ -13,7 +13,6 @@ def init_db():
     conn = get_conn()
     c = conn.cursor()
 
-    # Machines table
     c.execute(
         """
         CREATE TABLE IF NOT EXISTS machines (
@@ -25,7 +24,6 @@ def init_db():
         """
     )
 
-    # Scans table
     c.execute(
         """
         CREATE TABLE IF NOT EXISTS scans (
@@ -37,7 +35,6 @@ def init_db():
         """
     )
 
-    # Updates table (with status + result)
     c.execute(
         """
         CREATE TABLE IF NOT EXISTS updates (
@@ -52,7 +49,6 @@ def init_db():
         """
     )
 
-    # Ensure new columns exist on older DBs
     c.execute("PRAGMA table_info(updates)")
     cols = [row[1] for row in c.fetchall()]
 
@@ -71,10 +67,6 @@ def init_db():
     conn.commit()
     conn.close()
 
-
-# ----------------------------------------------------
-# Machines
-# ----------------------------------------------------
 
 def get_machines():
     conn = get_conn()
@@ -139,10 +131,6 @@ def update_machine_ip(hostname, ip):
     conn.close()
 
 
-# ----------------------------------------------------
-# Scans
-# ----------------------------------------------------
-
 def save_scan(machine_id, data_json):
     conn = get_conn()
     c = conn.cursor()
@@ -178,10 +166,6 @@ def get_latest_scan_for_machine(machine_id):
     conn.close()
     return row
 
-
-# ----------------------------------------------------
-# Updates
-# ----------------------------------------------------
 
 def _classify_status(result_text, pkg_name):
     """

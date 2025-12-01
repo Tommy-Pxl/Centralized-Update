@@ -12,14 +12,10 @@ echo "Master IP: ${MASTER_IP}"
 echo "Ansible user: ${ANSIBLE_USER}"
 echo
 
-# ------------------------------------------------
-# 0) Ensure SSH server is installed and running
-# ------------------------------------------------
 echo "[+] Checking SSH server (OpenSSH)..."
 
 SSH_SERVICE_OK=false
 
-# Try to detect running ssh service via systemd
 if command -v systemctl >/dev/null 2>&1; then
     if systemctl is-active --quiet ssh; then
         SSH_SERVICE_OK=true
@@ -31,11 +27,9 @@ if [ "${SSH_SERVICE_OK}" = false ]; then
     echo "[+] Installing and enabling OpenSSH server..."
 
     if command -v apt >/dev/null 2>&1; then
-        # Install OpenSSH server if not present
         apt update -y
         apt install -y openssh-server
 
-        # Enable + start ssh service via systemd if available
         if command -v systemctl >/dev/null 2>&1; then
             systemctl enable --now ssh || echo "    [WARNING] Could not enable/start ssh with systemctl."
         fi
@@ -44,7 +38,6 @@ if [ "${SSH_SERVICE_OK}" = false ]; then
     fi
 fi
 
-# Optional: open firewall for SSH if ufw is active
 if command -v ufw >/dev/null 2>&1; then
     if ufw status 2>/dev/null | grep -q "Status: active"; then
         echo "[+] UFW is active, allowing SSH..."
@@ -54,9 +47,6 @@ fi
 
 echo
 
-# ------------------------------------------------
-# 1) Ensure ansible user exists
-# ------------------------------------------------
 echo "[+] Ensuring user '${ANSIBLE_USER}' exists..."
 
 if id "${ANSIBLE_USER}" &>/dev/null; then
@@ -72,9 +62,6 @@ if [ -z "${ANSIBLE_HOME}" ]; then
     exit 1
 fi
 
-# ------------------------------------------------
-# 2) Install master's SSH public key
-# ------------------------------------------------
 echo "[+] Configuring SSH authorized_keys for ${ANSIBLE_USER}..."
 
 mkdir -p "${ANSIBLE_HOME}/.ssh"
@@ -97,9 +84,6 @@ chown -R "${ANSIBLE_USER}:${ANSIBLE_USER}" "${ANSIBLE_HOME}/.ssh"
 
 echo
 
-# ------------------------------------------------
-# 3) Grant passwordless sudo to ansible user
-# ------------------------------------------------
 echo "[+] Configuring passwordless sudo for ${ANSIBLE_USER}..."
 
 SUDOERS_FILE="/etc/sudoers.d/${ANSIBLE_USER}"
@@ -118,31 +102,24 @@ fi
 
 echo
 
-# ------------------------------------------------
-# 4) Call back to master with hostname + IP
-# ------------------------------------------------
 echo "[+] Calling master enrollment API..."
 
 HOSTNAME_SHORT=$(hostname -s)
 
-# Allow override: CLIENT_IP=<ip> curl ... | sudo CLIENT_IP=... bash
 if [ -n "${CLIENT_IP}" ]; then
     IP_ADDR="${CLIENT_IP}"
 else
-    # Collect all candidate IPs from hostname -I
     CANDIDATES=$(hostname -I 2>/dev/null || true)
     MASTER_NET_3=$(echo "${MASTER_IP}" | awk -F. '{print $1"."$2"."$3}')
     IP_ADDR=""
 
-    # 1) Prefer IPs on same /24 as master (e.g. 192.168.127.x)
-    for ip in ${CANDIDATES}; do
+        for ip in ${CANDIDATES}; do
         if echo "${ip}" | grep -qE "^${MASTER_NET_3}\."; then
             IP_ADDR="${ip}"
             break
         fi
     done
 
-    # 2) If none matched, pick first non-loopback address
     if [ -z "${IP_ADDR}" ]; then
         for ip in ${CANDIDATES}; do
             if [ "${ip}" != "127.0.0.1" ]; then
@@ -150,6 +127,13 @@ else
                 break
             fi
         done
+
+    if command -v ip >/dev/null 2>&1; then
+        IP_ADDR=$(ip route get 8.8.8.8 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i=="src") print $(i+1)}' | head -n1)
+    fi
+
+    if [ -z "${IP_ADDR}" ]; then
+        IP_ADDR=$(hostname -I 2>/dev/null | awk '{print $1}')
     fi
 fi
 

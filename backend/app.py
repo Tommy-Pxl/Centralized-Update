@@ -28,16 +28,9 @@ import re
 
 app = Flask(__name__)
 
-# ---------------------------------------------------------
-# Initialize DB
-# ---------------------------------------------------------
 with app.app_context():
     init_db()
 
-
-# ---------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------
 
 def parse_upgradable(upgradable_lines, version_list_results):
     """
@@ -47,7 +40,6 @@ def parse_upgradable(upgradable_lines, version_list_results):
     """
     packages = []
 
-    # Build map: package -> list of available versions (parsed)
     versions_map = {}
     for r in version_list_results or []:
         item = r.get("item")
@@ -73,7 +65,7 @@ def parse_upgradable(upgradable_lines, version_list_results):
             continue
 
         name = parts[0].split("/")[0]
-        current = parts[1]  # candidate version
+        current = parts[1]
         from_ver = None
 
         if "[upgradable from:" in line:
@@ -109,7 +101,6 @@ def parse_ansible_summary(result_text: str):
     if not result_text:
         return {"status": "unknown", "recap": None}
 
-    # Timeout from run_playbook
     if result_text.startswith("Timed out after"):
         return {"status": "timeout", "recap": None}
 
@@ -117,7 +108,6 @@ def parse_ansible_summary(result_text: str):
     recap_line = None
 
     for line in lines:
-        # Typical recap line: "ubuntu : ok=4 changed=3 unreachable=0 failed=1 skipped=0 ..."
         if "failed=" in line and "unreachable=" in line and ":" in line:
             recap_line = line.strip()
 
@@ -142,10 +132,6 @@ def parse_ansible_summary(result_text: str):
 
     return {"status": status, "recap": recap_line}
 
-
-# ---------------------------------------------------------
-# Routes
-# ---------------------------------------------------------
 
 @app.route("/")
 def index():
@@ -243,7 +229,6 @@ def update(machine_id):
 
     machine_id_val, hostname, ip, username = machine
 
-    # Load latest scan to know upgradable packages
     latest_row = get_latest_scan_for_machine(machine_id_val)
     packages = []
     if latest_row:
@@ -257,49 +242,39 @@ def update(machine_id):
         packages = parse_upgradable(upgradable_lines, version_list_results)
 
     if request.method == "GET":
-        # Show UI with checkboxes + version dropdowns
         return render_template(
             "update.html",
             machine=machine,
             packages=packages,
         )
 
-    # POST: two views of selection:
-    #  - selected_ansible: what we send to Ansible (may contain "latest")
-    #  - selected_db:      what we store/display, with numeric version where known
     selected_ansible = []
     selected_db = []
 
-    # "Update ALL" path
     if "update_all" in request.form:
         for pkg in packages:
-            # For Ansible ("latest")
             selected_ansible.append({
                 "name": pkg["name"],
                 "version": "latest",
             })
 
-            # For DB/display: numeric version from scan if we have it
             target_display = pkg.get("current") or "latest"
             selected_db.append({
                 "name": pkg["name"],
                 "version": target_display,
             })
     else:
-        # Specific selection path
         for pkg in packages:
             checkbox_name = f"select_{pkg['name']}"
             if checkbox_name in request.form:
                 version_field = f"version_{pkg['name']}"
                 v_raw = request.form.get(version_field, "latest") or "latest"
 
-                # For Ansible:
                 selected_ansible.append({
                     "name": pkg["name"],
                     "version": v_raw,
                 })
 
-                # For DB/display:
                 if v_raw == "latest":
                     target_display = pkg.get("current") or "latest"
                 else:
@@ -325,7 +300,6 @@ def update(machine_id):
 
     summary = parse_ansible_summary(result)
 
-    # Log the update run (one row per package) using the "display" versions
     save_updates(machine_id_val, selected_db, result)
 
     return render_template(
@@ -381,7 +355,6 @@ def downgrade_package(machine_id, package):
             from_ver=from_ver,
         )
 
-    # POST: specific version chosen for this package
     selected_version = request.form.get("version")
     if not selected_version:
         return "No version specified for downgrade.", 400
@@ -438,7 +411,14 @@ def generate_enrollment_script():
 def api_enroll():
     data = request.json
     hostname = data.get("hostname")
-    ip = data.get("ip")
+    ip_client = data.get("ip")
+    if ip_client:
+        if ip_client.startswith("10.0.2."):
+            ip = request.remote_addr
+        else:
+            ip = ip_client
+    else:
+        ip = request.remote_addr
 
     existing = get_machine_by_hostname(hostname)
 
